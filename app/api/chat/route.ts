@@ -14,11 +14,11 @@ import { SYSTEM_MESSAGE } from "@/lib/constants/systemMessage";
 
 const llm = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
-  model: "gpt-4o",
+  model: "gpt-4-1106-preview", // "gpt-4-mini" is not an official model name; use "gpt-4-1106-preview" or check OpenAI docs for the latest mini model
   temperature: 0,
   maxTokens: 1000,
   streaming: false,
-  verbose: true,
+  verbose: false,
 });
 
 async function queryOrRespond(state: typeof MessagesAnnotation.State) {
@@ -27,6 +27,7 @@ async function queryOrRespond(state: typeof MessagesAnnotation.State) {
   const messagesWithSystem = [systemMessage, ...state.messages];
   const llmWithTools = llm.bindTools([retrieve]);
   const response = await llmWithTools.invoke(messagesWithSystem);
+  console.log(response);
   return { messages: [response] };
 }
 
@@ -108,11 +109,11 @@ export async function POST(request: NextRequest) {
     const initialState = { messages: langchainMessages };
 
     const finalState = await app.invoke(initialState);
-
     const lastMessage = finalState.messages[finalState.messages.length - 1];
 
     return NextResponse.json({
       messages: [{ content: lastMessage.content }],
+      tokenUsage: lastMessage.response_metadata?.tokenUsage,
     });
   } catch (error) {
     console.error("Error:", error);

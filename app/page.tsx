@@ -24,18 +24,13 @@ import {
   Minimize2,
 } from "lucide-react";
 
+// Add this to your Message interface
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   id: string;
 }
-
-const examplePrompts = [
-  "TORUNLAR GYO hangi projeleri var?",
-  "Mall of İstanbul'da hangi mağazalar var?",
-  "TORUNLAR hakkında bilgi ver",
-];
 
 export default function TorunlarChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,7 +43,17 @@ export default function TorunlarChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        const isAtBottom =
+          container.scrollHeight - container.scrollTop <=
+          container.clientHeight + 100;
+        if (isAtBottom) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    }
   };
 
   useEffect(() => {
@@ -65,6 +70,13 @@ export default function TorunlarChatPage() {
     return Math.random().toString(36).substr(2, 9);
   };
 
+  const [totalTokens, setTotalTokens] = useState({
+    prompt: 0,
+    completion: 0,
+    total: 0,
+  });
+
+  // Modify your handleSubmit function
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || loading) return;
@@ -108,8 +120,11 @@ export default function TorunlarChatPage() {
           id: generateMessageId(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        throw new Error("Invalid response format");
+        setTotalTokens({
+          prompt: data.tokenUsage?.promptTokens || 0,
+          completion: data.tokenUsage?.completionTokens || 0,
+          total: data.tokenUsage?.totalTokens || 0,
+        });
       }
     } catch (error) {
       console.error("Error:", error);
@@ -168,9 +183,10 @@ export default function TorunlarChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 flex-none">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -212,13 +228,22 @@ export default function TorunlarChatPage() {
                 <Badge variant="outline">{messages.length} mesaj</Badge>
               )}
             </div>
+            <Badge variant="secondary" className="ml-2">
+              Prompt: {totalTokens.prompt}, Completion: {totalTokens.completion}
+              , Total: {totalTokens.total}
+            </Badge>
           </CardHeader>
 
           <Separator />
 
           {/* Example prompts */}
-          <div className="px-6 pt-4 pb-2 flex flex-wrap gap-2">
-            {examplePrompts.map((prompt, i) => (
+          <div className="flex-none px-6 pt-4 pb-2 flex flex-wrap gap-2">
+            {[
+              "Torunlar GYO hakkında bilgi verir misin?",
+              "Torunlar GYO'nun projeleri nelerdir?",
+              "Mall of İstanbul nerede?",
+              "5. Levent projesi nedir?",
+            ].map((prompt, i) => (
               <Button
                 key={i}
                 variant="outline"
@@ -233,8 +258,8 @@ export default function TorunlarChatPage() {
           </div>
 
           {/* Messages */}
-          <ScrollArea className={`flex-1 px-6 py-4 `}>
-            <div className="space-y-6">
+          <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="space-y-6 min-h-full">
               {messages.length === 0 && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -248,7 +273,12 @@ export default function TorunlarChatPage() {
                     sorabilirsiniz.
                   </p>
                   <div className="flex flex-wrap justify-center gap-2 text-xs">
-                    {examplePrompts.map((p, i) => (
+                    {[
+                      "Torunlar GYO hakkında bilgi verir misin?",
+                      "Torunlar GYO'nun projeleri nelerdir?",
+                      "Mall of İstanbul nerede?",
+                      "5. Levent projesi nedir?",
+                    ].map((p, i) => (
                       <Badge key={i} variant="secondary">
                         {p.length > 20 ? p.slice(0, 20) + "..." : p}
                       </Badge>
@@ -323,7 +353,7 @@ export default function TorunlarChatPage() {
                   </Avatar>
                   <div className="bg-muted rounded-lg p-3 max-w-[70%]">
                     <p className="text-sm text-muted-foreground italic">
-                      Yanıt geliyor...
+                      Düşünüyor...
                     </p>
                   </div>
                 </div>
@@ -340,10 +370,10 @@ export default function TorunlarChatPage() {
             </div>
           </ScrollArea>
 
-          <Separator />
+          <Separator className="flex-none" />
 
           {/* Input */}
-          <CardContent className="p-4">
+          <CardContent className="flex-none p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <Input
                 ref={inputRef}
