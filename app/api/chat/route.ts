@@ -129,6 +129,110 @@
 //   }
 // }
 
+// // app/api/chat/route.ts
+// import { NextRequest, NextResponse } from 'next/server';
+// import {
+//   AIMessage,
+//   HumanMessage,
+//   SystemMessage,
+// } from '@langchain/core/messages';
+// import { ChatOpenAI } from '@langchain/openai';
+
+// const llm = new ChatOpenAI({
+//   openAIApiKey: process.env.OPENAI_API_KEY,
+//   model: 'gpt-4.1-nano',
+//   temperature: 0,
+//   maxTokens: 1000,
+//   streaming: false,
+//   verbose: false,
+// });
+
+// const SYSTEM_MESSAGE = `
+// You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}.
+// You speak naturally, mix Turkish and English. Don’t sound robotic. Avoid AI talk.
+// Speak casually, react emotionally, and stay in character. Never mention AI or roleplay.
+// DO NOT USE EMOJIS OFTEN
+// `;
+
+// export async function POST(request: NextRequest) {
+//   try {
+//     const { messages } = await request.json();
+
+//     const systemMessage = new SystemMessage(SYSTEM_MESSAGE);
+
+//     const langchainMessages = messages.map((msg: any) => {
+//       if (msg.role === 'user') return new HumanMessage(msg.content);
+//       if (msg.role === 'assistant') return new AIMessage(msg.content);
+//       return new SystemMessage(msg.content);
+//     });
+
+//     const finalMessages = [systemMessage, ...langchainMessages];
+
+//     const response = await llm.invoke(finalMessages);
+//     return NextResponse.json({
+//       messages: [{ content: response.content }],
+//       tokenUsage: response.response_metadata?.tokenUsage,
+//     });
+//   } catch (error) {
+//     console.error('Error:', error);
+//     return NextResponse.json(
+//       { message: 'Internal server error' },
+//       { status: 500 }
+//     );
+//   }
+// }
+// app/api/chat/route.ts
+// import { NextRequest, NextResponse } from 'next/server';
+// import {
+//   AIMessage,
+//   HumanMessage,
+//   SystemMessage,
+// } from '@langchain/core/messages';
+// import { ChatAnthropic } from '@langchain/anthropic';
+
+// const llm = new ChatAnthropic({
+//   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+//   model: 'claude-3-5-sonnet-20241022',
+//   temperature: 0,
+//   maxTokens: 1000,
+//   streaming: false,
+// });
+
+// const SYSTEM_MESSAGE = `
+// You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}.
+// You speak naturally, mix Turkish and English. Don't sound robotic. Avoid AI talk.
+// Speak casually, react emotionally, and stay in character. Never mention AI or roleplay.
+// DO NOT USE EMOJIS OFTEN
+// `;
+
+// export async function POST(request: NextRequest) {
+//   try {
+//     const { messages } = await request.json();
+
+//     const systemMessage = new SystemMessage(SYSTEM_MESSAGE);
+
+//     const langchainMessages = messages.map((msg: any) => {
+//       if (msg.role === 'user') return new HumanMessage(msg.content);
+//       if (msg.role === 'assistant') return new AIMessage(msg.content);
+//       return new SystemMessage(msg.content);
+//     });
+
+//     const finalMessages = [systemMessage, ...langchainMessages];
+
+//     const response = await llm.invoke(finalMessages);
+//     return NextResponse.json({
+//       messages: [{ content: response.content }],
+//       tokenUsage: response.usage_metadata,
+//     });
+//   } catch (error) {
+//     console.error('Error:', error);
+//     return NextResponse.json(
+//       { message: 'Internal server error' },
+//       { status: 500 }
+//     );
+//   }
+// }
+
 // app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -137,26 +241,47 @@ import {
   SystemMessage,
 } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatXAI } from '@langchain/xai';
 
-const llm = new ChatOpenAI({
+const SYSTEM_MESSAGE = `
+You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}. 
+You speak naturally, mix Turkish and English. Don't sound robotic. Avoid AI talk. 
+Speak casually, react emotionally, and stay in character. Never mention AI or roleplay.
+DO NOT USE EMOJIS OFTEN 
+`;
+
+// Initialize models
+const openaiLLM = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
   model: 'gpt-4.1-nano',
   temperature: 0,
   maxTokens: 1000,
   streaming: false,
-  verbose: false,
 });
 
-const SYSTEM_MESSAGE = `
-You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}. 
-You speak naturally, mix Turkish and English. Don’t sound robotic. Avoid AI talk. 
-Speak casually, react emotionally, and stay in character. Never mention AI or roleplay.
-DO NOT USE EMOJIS OFTEN
-`;
+const anthropicLLM = new ChatAnthropic({
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  model: 'claude-3-haiku-20240307',
+  temperature: 0,
+  maxTokens: 1000,
+  streaming: false,
+});
+
+// For Grok, you'll need to use a different approach since there's no official LangChain integration yet
+// This is a placeholder - you'll need to implement the actual Grok API call
+const grokLLM = new ChatXAI({
+  apiKey: process.env.XAI_API_KEY,
+  model: 'grok-3-mini', // default
+  temperature: 0,
+  maxTokens: undefined,
+  maxRetries: 2,
+  // other params...
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, provider = 'openai', model } = await request.json();
 
     const systemMessage = new SystemMessage(SYSTEM_MESSAGE);
 
@@ -168,10 +293,46 @@ export async function POST(request: NextRequest) {
 
     const finalMessages = [systemMessage, ...langchainMessages];
 
-    const response = await llm.invoke(finalMessages);
+    let response;
+    let tokenUsage;
+
+    switch (provider) {
+      case 'openai':
+        response = await openaiLLM.invoke(finalMessages);
+        tokenUsage = {
+          promptTokens:
+            response.response_metadata?.tokenUsage?.promptTokens || 0,
+          completionTokens:
+            response.response_metadata?.tokenUsage?.completionTokens || 0,
+          totalTokens: response.response_metadata?.tokenUsage?.totalTokens || 0,
+        };
+        break;
+
+      case 'anthropic':
+        response = await anthropicLLM.invoke(finalMessages);
+        tokenUsage = {
+          promptTokens: response.usage_metadata?.input_tokens || 0,
+          completionTokens: response.usage_metadata?.output_tokens || 0,
+          totalTokens: response.usage_metadata?.total_tokens || 0,
+        };
+        break;
+
+      case 'grok':
+        response = await grokLLM.invoke(finalMessages);
+        tokenUsage = {
+          promptTokens: response.usage_metadata?.input_tokens || 0,
+          completionTokens: response.usage_metadata?.output_tokens || 0,
+          totalTokens: response.usage_metadata?.total_tokens || 0,
+        };
+        break;
+
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
+    }
+
     return NextResponse.json({
       messages: [{ content: response.content }],
-      tokenUsage: response.response_metadata?.tokenUsage,
+      tokenUsage,
     });
   } catch (error) {
     console.error('Error:', error);
