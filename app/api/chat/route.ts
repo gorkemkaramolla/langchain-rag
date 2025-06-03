@@ -130,17 +130,17 @@
 // }
 
 // app/api/chat/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 import {
   AIMessage,
   HumanMessage,
   SystemMessage,
-} from "@langchain/core/messages";
-import { ChatOpenAI } from "@langchain/openai";
+} from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
 
 const llm = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
-  model: "gpt-4-1106-preview",
+  model: 'gpt-4.1-nano',
   temperature: 0,
   maxTokens: 1000,
   streaming: false,
@@ -161,8 +161,8 @@ export async function POST(request: NextRequest) {
     const systemMessage = new SystemMessage(SYSTEM_MESSAGE);
 
     const langchainMessages = messages.map((msg: any) => {
-      if (msg.role === "user") return new HumanMessage(msg.content);
-      if (msg.role === "assistant") return new AIMessage(msg.content);
+      if (msg.role === 'user') return new HumanMessage(msg.content);
+      if (msg.role === 'assistant') return new AIMessage(msg.content);
       return new SystemMessage(msg.content);
     });
 
@@ -174,9 +174,9 @@ export async function POST(request: NextRequest) {
       tokenUsage: response.response_metadata?.tokenUsage,
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error('Error:', error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
