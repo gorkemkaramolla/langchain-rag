@@ -20,11 +20,8 @@ import {
   Copy,
   Check,
   AlertCircle,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 
-// Add this to your Message interface
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -32,7 +29,7 @@ interface Message {
   id: string;
 }
 
-export default function TorunlarChatPage() {
+export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,7 +73,6 @@ export default function TorunlarChatPage() {
     total: 0,
   });
 
-  // Modify your handleSubmit function
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || loading) return;
@@ -129,15 +125,15 @@ export default function TorunlarChatPage() {
     } catch (error) {
       console.error("Error:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu";
-      setError(`Hata: ${errorMessage}`);
+        error instanceof Error ? error.message : "An unknown error occurred";
+      setError(`Error: ${errorMessage}`);
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content:
-            "Üzgünüm, şu anda teknik bir sorun yaşanıyor. Lütfen daha sonra tekrar deneyin.",
+            "Sorry, there is a technical issue right now. Please try again later.",
           timestamp: new Date(),
           id: generateMessageId(),
         },
@@ -176,7 +172,7 @@ export default function TorunlarChatPage() {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("tr-TR", {
+    return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -193,10 +189,8 @@ export default function TorunlarChatPage() {
               <Bot className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">TORUNLAR GYO</h1>
-              <p className="text-sm text-muted-foreground">
-                AI Powered Assistant
-              </p>
+              <h1 className="text-2xl font-bold">AI Assistant</h1>
+              <p className="text-sm text-muted-foreground">Powered by AI</p>
             </div>
           </div>
 
@@ -205,12 +199,12 @@ export default function TorunlarChatPage() {
               variant="secondary"
               className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
             >
-              Aktif
+              Active
             </Badge>
             {messages.length > 0 && (
               <Button variant="outline" size="sm" onClick={clearChat}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Temizle
+                Clear
               </Button>
             )}
           </div>
@@ -223,9 +217,9 @@ export default function TorunlarChatPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div className="flex items-center space-x-2">
               <Bot className="w-5 h-5 text-primary" />
-              <CardTitle className="text-lg">Sohbet</CardTitle>
+              <CardTitle className="text-lg">Chat</CardTitle>
               {messages.length > 0 && (
-                <Badge variant="outline">{messages.length} mesaj</Badge>
+                <Badge variant="outline">{messages.length} messages</Badge>
               )}
             </div>
             <Badge variant="secondary" className="ml-2">
@@ -237,25 +231,6 @@ export default function TorunlarChatPage() {
           <Separator />
 
           {/* Example prompts */}
-          <div className="flex-none px-6 pt-4 pb-2 flex flex-wrap gap-2">
-            {[
-              "Torunlar GYO hakkında bilgi verir misin?",
-              "Torunlar GYO'nun projeleri nelerdir?",
-              "Mall of İstanbul nerede?",
-              "5. Levent projesi nedir?",
-            ].map((prompt, i) => (
-              <Button
-                key={i}
-                variant="outline"
-                size="sm"
-                onClick={() => sendExamplePrompt(prompt)}
-                disabled={loading}
-                className="text-xs h-8"
-              >
-                {prompt}
-              </Button>
-            ))}
-          </div>
 
           {/* Messages */}
           <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
@@ -266,22 +241,26 @@ export default function TorunlarChatPage() {
                     <Bot className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">
-                    TORUNLAR GYO AI Asistanına Hoş Geldiniz
+                    Welcome to the AI Assistant
                   </h3>
                   <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                    TORUNLAR GYO ve bağlı şirketleri hakkında sorularınızı
-                    sorabilirsiniz.
+                    You can ask questions about our services or products.
                   </p>
-                  <div className="flex flex-wrap justify-center gap-2 text-xs">
+                  <div className="flex-none px-6 pt-4 pb-2 flex flex-wrap gap-2">
                     {[
-                      "Torunlar GYO hakkında bilgi verir misin?",
-                      "Torunlar GYO'nun projeleri nelerdir?",
-                      "Mall of İstanbul nerede?",
-                      "5. Levent projesi nedir?",
-                    ].map((p, i) => (
-                      <Badge key={i} variant="secondary">
-                        {p.length > 20 ? p.slice(0, 20) + "..." : p}
-                      </Badge>
+                      "Tell me about your services.",
+                      "Where is your main office located?",
+                    ].map((prompt, i) => (
+                      <Button
+                        key={i}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => sendExamplePrompt(prompt)}
+                        disabled={loading}
+                        className="text-xs h-8"
+                      >
+                        {prompt}
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -353,7 +332,7 @@ export default function TorunlarChatPage() {
                   </Avatar>
                   <div className="bg-muted rounded-lg p-3 max-w-[70%]">
                     <p className="text-sm text-muted-foreground italic">
-                      Düşünüyor...
+                      Thinking...
                     </p>
                   </div>
                 </div>
@@ -377,7 +356,7 @@ export default function TorunlarChatPage() {
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <Input
                 ref={inputRef}
-                placeholder="Sorunuzu yazın..."
+                placeholder="Type your question..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}

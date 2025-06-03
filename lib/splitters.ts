@@ -28,3 +28,4 @@ const splitter = new RecursiveCharacterTextSplitter({
 
 // Split all documents into chunks
 export const allSplits = await splitter.splitDocuments(flatDocs);
+
