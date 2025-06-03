@@ -244,12 +244,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatXAI } from '@langchain/xai';
 
-const SYSTEM_MESSAGE = `
-You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}. 
-You speak naturally, mix Turkish and English. Don't sound robotic. Avoid AI talk. 
-Speak casually, react emotionally, and stay in character. Never mention AI or roleplay.
-DO NOT USE EMOJIS OFTEN 
-`;
+const SYSTEM_MESSAGE = `You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}. You speak naturally, mix Turkish and English. Don't sound robotic. Avoid AI talk. Speak casually, react emotionally, and stay in character. Never mention AI or roleplay. DO NOT USE EMOJIS OFTEN.`;
 
 // Initialize models
 const openaiLLM = new ChatOpenAI({
@@ -268,22 +263,17 @@ const anthropicLLM = new ChatAnthropic({
   streaming: false,
 });
 
-// For Grok, you'll need to use a different approach since there's no official LangChain integration yet
-// This is a placeholder - you'll need to implement the actual Grok API call
 const grokLLM = new ChatXAI({
   apiKey: process.env.XAI_API_KEY,
-  model: 'grok-3-mini', // default
+  model: 'grok-3-mini',
   temperature: 0,
-  maxTokens: undefined,
+  maxTokens: 1000,
   maxRetries: 2,
-  // other params...
 });
 
 export async function POST(request: NextRequest) {
   try {
     const { messages, provider = 'openai', model } = await request.json();
-
-    const systemMessage = new SystemMessage(SYSTEM_MESSAGE);
 
     const langchainMessages = messages.map((msg: any) => {
       if (msg.role === 'user') return new HumanMessage(msg.content);
@@ -291,7 +281,11 @@ export async function POST(request: NextRequest) {
       return new SystemMessage(msg.content);
     });
 
-    const finalMessages = [systemMessage, ...langchainMessages];
+    // Only add system message if it has actual content (not just whitespace)
+    const finalMessages =
+      SYSTEM_MESSAGE && SYSTEM_MESSAGE.trim()
+        ? [new SystemMessage(SYSTEM_MESSAGE), ...langchainMessages]
+        : langchainMessages;
 
     let response;
     let tokenUsage;
