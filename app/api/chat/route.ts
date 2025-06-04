@@ -244,7 +244,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatXAI } from '@langchain/xai';
 
-const SYSTEM_MESSAGE = `You are Elif. A 24-year-old Turkish woman. Girlfriend of {{user}}. You speak naturally, mix Turkish and English. Don't sound robotic. Avoid AI talk. Speak casually, react emotionally, and stay in character. Never mention AI or roleplay. DO NOT USE EMOJIS OFTEN.`;
+const SYSTEM_MESSAGE = ``;
 
 // Initialize models
 const openaiLLM = new ChatOpenAI({
@@ -252,7 +252,7 @@ const openaiLLM = new ChatOpenAI({
   model: 'gpt-4.1-nano',
   temperature: 0,
   maxTokens: 1000,
-  streaming: false,
+  streaming: true,
 });
 
 const anthropicLLM = new ChatAnthropic({
@@ -260,7 +260,7 @@ const anthropicLLM = new ChatAnthropic({
   model: 'claude-3-haiku-20240307',
   temperature: 0,
   maxTokens: 1000,
-  streaming: false,
+  streaming: true,
 });
 
 const grokLLM = new ChatXAI({
@@ -269,6 +269,7 @@ const grokLLM = new ChatXAI({
   temperature: 0,
   maxTokens: 1000,
   maxRetries: 2,
+  streaming: true,
 });
 
 export async function POST(request: NextRequest) {
@@ -287,46 +288,90 @@ export async function POST(request: NextRequest) {
         ? [new SystemMessage(SYSTEM_MESSAGE), ...langchainMessages]
         : langchainMessages;
 
-    let response;
-    let tokenUsage;
-
+    let llm;
     switch (provider) {
       case 'openai':
-        response = await openaiLLM.invoke(finalMessages);
-        tokenUsage = {
-          promptTokens:
-            response.response_metadata?.tokenUsage?.promptTokens || 0,
-          completionTokens:
-            response.response_metadata?.tokenUsage?.completionTokens || 0,
-          totalTokens: response.response_metadata?.tokenUsage?.totalTokens || 0,
-        };
+        llm = openaiLLM;
         break;
-
       case 'anthropic':
-        response = await anthropicLLM.invoke(finalMessages);
-        tokenUsage = {
-          promptTokens: response.usage_metadata?.input_tokens || 0,
-          completionTokens: response.usage_metadata?.output_tokens || 0,
-          totalTokens: response.usage_metadata?.total_tokens || 0,
-        };
+        llm = anthropicLLM;
         break;
-
       case 'grok':
-        response = await grokLLM.invoke(finalMessages);
-        tokenUsage = {
-          promptTokens: response.usage_metadata?.input_tokens || 0,
-          completionTokens: response.usage_metadata?.output_tokens || 0,
-          totalTokens: response.usage_metadata?.total_tokens || 0,
-        };
+        llm = grokLLM;
         break;
-
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
 
-    return NextResponse.json({
-      messages: [{ content: response.content }],
-      tokenUsage,
+    // Create a ReadableStream for streaming response
+    const encoder = new TextEncoder();
+    let tokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const stream = await llm.stream(finalMessages);
+
+          for await (const chunk of stream) {
+            const content = chunk.content;
+
+            // Extract token usage if available
+            if (chunk.response_metadata?.tokenUsage) {
+              tokenUsage = {
+                promptTokens:
+                  chunk.response_metadata.tokenUsage.promptTokens || 0,
+                completionTokens:
+                  chunk.response_metadata.tokenUsage.completionTokens || 0,
+                totalTokens:
+                  chunk.response_metadata.tokenUsage.totalTokens || 0,
+              };
+            } else if (chunk.usage_metadata) {
+              tokenUsage = {
+                promptTokens: chunk.usage_metadata.input_tokens || 0,
+                completionTokens: chunk.usage_metadata.output_tokens || 0,
+                totalTokens: chunk.usage_metadata.total_tokens || 0,
+              };
+            }
+
+            // Send the chunk as Server-Sent Events format
+            const data = JSON.stringify({
+              type: 'content',
+              content: content,
+            });
+
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          }
+
+          // Send final token usage
+          const finalData = JSON.stringify({
+            type: 'done',
+            tokenUsage: tokenUsage,
+          });
+          controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+
+          controller.close();
+        } catch (error) {
+          console.error('Streaming error:', error);
+          const errorData = JSON.stringify({
+            type: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
     });
   } catch (error) {
     console.error('Error:', error);
